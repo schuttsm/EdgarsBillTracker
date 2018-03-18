@@ -1,4 +1,4 @@
-package com.example.stephen.billtracker2;
+package com.sschutt.billtracker3;
 
 import org.junit.Test;
 

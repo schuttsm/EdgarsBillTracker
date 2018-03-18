@@ -1,7 +1,13 @@
 <resources>
-    <string name="app_name">BillTracker2</string>
-    <string name="title_activity_main">MainActivity</string>
-    <string name="title_home">New Bill</string>
-    <string name="title_dashboard">List</string>
-    <string name="title_notifications">Totals</string>
+    <string name="app_name">Edgars Bill Tracker</string>
+    <string name="server_client_id"></string>
+    <string name="signin">SIGN IN</string>
+    <string name="sign_up">SIGN UP</string>
+    <string name="email">Email</string>
+    <string name="password">password</string>
+    <string name="title_activity_home">Enter Bill</string>
+    <string name="title_home">Enter bill</string>
+    <string name="title_reports">Reports</string>
+    <string name="title_settings">Settings</string>
+    <string name="amount">Amount</string>
 </resources>

@@ -2,51 +2,58 @@
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.sschutt.billtracker3.SignInActivity">
-
+    tools:context="com.sschutt.billtracker3.HomeActivity">
 
     <EditText
-        android:id="@+id/email"
+        android:id="@+id/amount"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="24dp"
         android:layout_marginStart="24dp"
         android:layout_marginTop="24dp"
-        android:ems="10"
-        android:hint="@string/email"
-        android:inputType="textEmailAddress"
         android:background="@drawable/common_google_signin_btn_icon_light_normal_background"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:ems="10"
+        android:hint="@string/amount"
+        android:inputType="numberDecimal"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <Spinner
+        android:id="@+id/currency"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="24dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="24dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/amount"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <EditText
-        android:id="@+id/password"
+        android:id="@+id/category"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginEnd="24dp"
         android:layout_marginStart="24dp"
         android:layout_marginTop="24dp"
         android:background="@drawable/common_google_signin_btn_icon_light_normal_background"
-        android:ems="10"
-        android:hint="@string/password"
-        android:inputType="textPassword"
+        android:hint="Category"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/email" />
+        app:layout_constraintTop_toBottomOf="@+id/amount" />
 
     <Button
-        android:id="@+id/SignIn"
+        android:id="@+id/save"
         android:layout_width="0dp"
-        android:layout_height="48dp"
+        android:layout_height="wrap_content"
         android:layout_marginEnd="24dp"
         android:layout_marginStart="24dp"
         android:layout_marginTop="24dp"
-        android:text="@string/signin"
+        android:text="Save"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/password" />
+        app:layout_constraintTop_toBottomOf="@+id/category" />
 
 </android.support.constraint.ConstraintLayout>
