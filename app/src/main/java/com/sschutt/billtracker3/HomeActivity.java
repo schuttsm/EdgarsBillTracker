@@ -20,7 +20,10 @@ import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.Volley;
+import com.birbit.android.jobqueue.JobManager;
+import com.birbit.android.jobqueue.config.Configuration;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -29,9 +32,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class HomeActivity extends BaseActivity {
-
+    JobManager jobManager;
     private TextView mTextMessage;
     private String TAG = "Bill Entry";
 
@@ -39,6 +45,11 @@ public class HomeActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
+        Configuration.Builder builder = new Configuration.Builder(this)
+                .minConsumerCount(1)
+                .maxConsumerCount(3)
+                .loadFactor(3);
+        jobManager = new JobManager(builder.build());
 
         mTextMessage = (TextView) findViewById(R.id.message);
 
@@ -64,6 +75,29 @@ public class HomeActivity extends BaseActivity {
     }
 
     private void Save(String amount, String currency, String category) {
+        final String token = this.getCookieValue("token");
+        jobManager.addJobInBackground(new PostDataJob(amount, currency, category, token));
+        ((EditText)findViewById(R.id.amount)).setText("");
+        ((Spinner)findViewById(R.id.currency)).setSelection(0);
+        ((EditText)findViewById(R.id.category)).setText("");
+        ((EditText)findViewById(R.id.amount)).requestFocus();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Success")
+                .setPositiveButton("OK", null);
+
+        final AlertDialog dlg = builder.create();
+        dlg.show();
+
+        final Timer t = new Timer();
+        t.schedule(new TimerTask() {
+            public void run() {
+                dlg.dismiss();
+                t.cancel();
+            }
+        }, 1500);
+
+        /*
         String base_url = getString(R.string.base_url);
         RequestQueue queue = Volley.newRequestQueue(this);
 
@@ -75,7 +109,42 @@ public class HomeActivity extends BaseActivity {
         JSONObject parameters = new JSONObject(params);
         final String token = this.getCookieValue("token");
 
-        Log.d(TAG, base_url + "bill");
+        Log.d(TAG, "preparing to post data to: " + base_url);
+        RequestFuture<JSONObject> future = RequestFuture.newFuture();
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST,
+                base_url + "bill",
+                parameters,
+                future,
+                future){
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                HashMap<String, String> headers = new HashMap<String, String>();
+                headers.put("Content-Type", "application/json");
+                headers.put("token", token);
+                return headers;
+            }
+        };
+        queue.add(request);
+
+        try {
+            Log.d(TAG, "Posting data to: " + base_url+ "bill");
+            JSONObject response = future.get(20, TimeUnit.SECONDS);
+            Log.d(TAG, "Response is: "+ response.toString());
+            handleSaveResponse(response);
+        } catch (InterruptedException e) {
+            String err_msg = e.getMessage() + ' ' + e.getStackTrace();
+            Log.e(TAG, err_msg);
+            displayErrorAlert(err_msg);
+        } catch (ExecutionException e) {
+            String err_msg = e.getMessage() + ' ' + e.getStackTrace();
+            Log.e(TAG, err_msg);
+            displayErrorAlert(err_msg);
+        } catch (TimeoutException e) {
+            String err_msg = e.getMessage() + ' ' + e.getStackTrace();
+            Log.e(TAG, err_msg);
+            displayErrorAlert(err_msg);
+        }
+
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST,
                 base_url + "bill",
                 parameters,
@@ -101,6 +170,8 @@ public class HomeActivity extends BaseActivity {
             }
         };
         queue.add(request);
+
+        */
     }
 
     private void handleSaveResponse(JSONObject response) {

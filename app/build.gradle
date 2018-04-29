@@ -33,4 +33,5 @@ dependencies {
     compile group: 'org.mindrot', name: 'jbcrypt', version: '0.3m'
     compile 'com.mcxiaoke.volley:library:1.0.19'
     compile 'org.apache.commons:commons-lang3:3.6'
+    compile 'com.birbit:android-priority-jobqueue:2.0.1'
 }
