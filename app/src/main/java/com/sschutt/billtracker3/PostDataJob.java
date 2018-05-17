@@ -58,20 +58,14 @@ public class PostDataJob extends Job {
     }
     @Override
     public void onAdded() {
-        // Job has been saved to disk.
-        // This is a good place to dispatch a UI event to indicate the job will eventually run.
-        // In this example, it would be good to update the UI with the newly posted tweet.
+        Log.d(TAG, "Job Added");
     }
     @Override
     public void onRun() throws Throwable {
         // Job logic goes here. In this example, the network call to post to Twitter is done here.
         // All work done here should be synchronous, a job is removed from the queue once 
         // onRun() finishes.
-        postData();
-    }
-
-    public void postData() {
-
+        Log.d(TAG, "running");
         String base_url = this.getApplicationContext().getString(R.string.base_url);
         RequestQueue queue = Volley.newRequestQueue(this.getApplicationContext());
 
@@ -99,29 +93,15 @@ public class PostDataJob extends Job {
         };
         queue.add(request);
 
-        try {
-            Log.d(TAG, "Posting data to: " + base_url+ "bill");
-            JSONObject response = future.get(20, TimeUnit.SECONDS);
-            Log.d(TAG, "Response is: "+ response.toString());
-        } catch (InterruptedException e) {
-            String err_msg = e.getMessage() + ' ' + e.getStackTrace();
-            Log.e(TAG, err_msg);
-        } catch (ExecutionException e) {
-            String err_msg = e.getMessage() + ' ' + e.getStackTrace();
-            Log.e(TAG, err_msg);
-        } catch (TimeoutException e) {
-            String err_msg = e.getMessage() + ' ' + e.getStackTrace();
-            Log.e(TAG, err_msg);
-        }
+        Log.d(TAG, "Posting data to: " + base_url + "bill");
+        JSONObject response = future.get(20, TimeUnit.SECONDS);
+        Log.d(TAG, "Response is: "+ response.toString());
     }
 
     @Override
     protected RetryConstraint shouldReRunOnThrowable(Throwable throwable, int runCount,
                                                      int maxRunCount) {
-        // An error occurred in onRun.
-        // Return value determines whether this job should retry or cancel. You can further
-        // specify a backoff strategy or change the job's priority. You can also apply the
-        // delay to the whole group to preserve jobs' running order.
+        Log.d(TAG, "Attempting rerun");
         return RetryConstraint.createExponentialBackoff(runCount, 1000);
     }
     @Override

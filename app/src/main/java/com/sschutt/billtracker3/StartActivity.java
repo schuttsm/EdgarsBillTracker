@@ -7,12 +7,17 @@ import android.view.View;
 
 import java.net.HttpCookie;
 
-public class StartActivity extends AppCompatActivity {
+public class StartActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start);
+
+        if (this.getCookieValue("token") != null) {
+            Intent intent = new Intent(this, HomeActivity.class);
+            startActivity(intent);
+        }
 
         findViewById(R.id.btnSignUp).setOnClickListener(new View.OnClickListener() {
             @Override

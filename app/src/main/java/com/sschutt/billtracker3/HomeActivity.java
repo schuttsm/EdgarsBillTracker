@@ -3,6 +3,7 @@ package com.sschutt.billtracker3;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -22,7 +23,10 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.Volley;
+import com.birbit.android.jobqueue.AsyncAddCallback;
+import com.birbit.android.jobqueue.Job;
 import com.birbit.android.jobqueue.JobManager;
+import com.birbit.android.jobqueue.callback.JobManagerCallback;
 import com.birbit.android.jobqueue.config.Configuration;
 
 import org.json.JSONException;
@@ -38,7 +42,8 @@ import java.util.concurrent.TimeoutException;
 
 public class HomeActivity extends BaseActivity {
     JobManager jobManager;
-    private TextView mTextMessage;
+    private TextView status_bar;
+    private int num_updates;
     private String TAG = "Bill Entry";
 
     @Override
@@ -50,8 +55,10 @@ public class HomeActivity extends BaseActivity {
                 .maxConsumerCount(3)
                 .loadFactor(3);
         jobManager = new JobManager(builder.build());
+        num_updates = 0;
+        jobManager.addCallback(this.setupStatusBarMessaging());
 
-        mTextMessage = (TextView) findViewById(R.id.message);
+        status_bar = (TextView) findViewById(R.id.status_bar);
 
         Spinner dropdown = findViewById(R.id.currency);
         String[] items = new String[]{"ALL", "Euro", "USD"};
@@ -66,6 +73,55 @@ public class HomeActivity extends BaseActivity {
         });
     }
 
+    private JobManagerCallback setupStatusBarMessaging() {
+        return new JobManagerCallback() {
+            @Override
+            public void onJobAdded(@NonNull Job job) {
+                num_updates++;
+                status_bar.setText(Integer.toString(num_updates) + " bills queued");
+            }
+
+            @Override
+            public void onJobRun(@NonNull Job job, int resultCode) {
+
+            }
+
+            @Override
+            public void onJobCancelled(@NonNull Job job, boolean byCancelRequest, @Nullable Throwable throwable) {
+                status_bar.setText("Error saving bill" + throwable.getMessage());
+            }
+
+            @Override
+            public void onDone(@NonNull Job job) {
+
+            }
+
+            @Override
+            public void onAfterJobRun(@NonNull Job job, int resultCode) {
+                Log.d(TAG, Integer.toString(resultCode));
+                if (resultCode == 1) {
+                    num_updates--;
+                    if (num_updates == 0) {
+                        status_bar.setText("Success");
+                        final Timer t = new Timer();
+                        t.schedule(new TimerTask() {
+                            public void run() {
+                                status_bar.setText("");
+                                t.cancel();
+                            }
+                        }, 1500);
+                    }
+                    else {
+                        status_bar.setText("Uploading " + Integer.toString(num_updates) + " bills");
+                    }
+                }
+                else {
+                    Log.d(TAG, "Error running job, resultCode" + resultCode);
+                }
+            }
+        };
+    }
+
     private void save_OnClick(View view) {
         String amount = ((EditText)findViewById(R.id.amount)).getText().toString();
         String currency = ((Spinner)findViewById(R.id.currency)).getSelectedItem().toString();
@@ -76,26 +132,14 @@ public class HomeActivity extends BaseActivity {
 
     private void Save(String amount, String currency, String category) {
         final String token = this.getCookieValue("token");
-        jobManager.addJobInBackground(new PostDataJob(amount, currency, category, token));
+        Log.d(TAG, token);
+        jobManager.addJobInBackground(new PostDataJob(amount, category, currency, token));
+
         ((EditText)findViewById(R.id.amount)).setText("");
         ((Spinner)findViewById(R.id.currency)).setSelection(0);
         ((EditText)findViewById(R.id.category)).setText("");
         ((EditText)findViewById(R.id.amount)).requestFocus();
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Success")
-                .setPositiveButton("OK", null);
-
-        final AlertDialog dlg = builder.create();
-        dlg.show();
-
-        final Timer t = new Timer();
-        t.schedule(new TimerTask() {
-            public void run() {
-                dlg.dismiss();
-                t.cancel();
-            }
-        }, 1500);
 
         /*
         String base_url = getString(R.string.base_url);

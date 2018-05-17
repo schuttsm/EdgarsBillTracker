@@ -69,6 +69,7 @@ public class SignInActivity extends BaseActivity {
                 }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
+                Log.e(TAG, String.valueOf(error.networkResponse.statusCode));
                 displayErrorAlert(error);
             }
         }
@@ -81,6 +82,7 @@ public class SignInActivity extends BaseActivity {
     private void handleSigninResponse(JSONObject response) {
         try {
             if (response.getString("status").equals("success")) {
+                this.setCookieValue("token", response.getString("token"));
                 Intent intent = new Intent(this, HomeActivity.class);
                 startActivity(intent);
             }
