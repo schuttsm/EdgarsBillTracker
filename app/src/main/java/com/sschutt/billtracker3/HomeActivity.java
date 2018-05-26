@@ -1,5 +1,6 @@
 package com.sschutt.billtracker3;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -8,9 +9,12 @@ import android.support.design.widget.BottomNavigationView;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -28,37 +32,46 @@ import com.birbit.android.jobqueue.Job;
 import com.birbit.android.jobqueue.JobManager;
 import com.birbit.android.jobqueue.callback.JobManagerCallback;
 import com.birbit.android.jobqueue.config.Configuration;
+import com.couchbase.lite.CouchbaseLiteException;
+import com.couchbase.lite.DataSource;
+import com.couchbase.lite.Database;
+import com.couchbase.lite.Ordering;
+import com.couchbase.lite.PropertyExpression;
+import com.couchbase.lite.Query;
+import com.couchbase.lite.QueryBuilder;
+import com.couchbase.lite.Result;
+import com.couchbase.lite.ResultSet;
+import com.couchbase.lite.SelectResult;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class HomeActivity extends BaseActivity {
-    JobManager jobManager;
-    private TextView status_bar;
+public class HomeActivity extends BaseLoggedInActivity {
+    protected TextView status_bar;
     private int num_updates;
     private String TAG = "Bill Entry";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_home);
-        Configuration.Builder builder = new Configuration.Builder(this)
-                .minConsumerCount(1)
-                .maxConsumerCount(3)
-                .loadFactor(3);
-        jobManager = new JobManager(builder.build());
-        num_updates = 0;
-        jobManager.addCallback(this.setupStatusBarMessaging());
 
         status_bar = (TextView) findViewById(R.id.status_bar);
+        num_updates = 0;
+        jobManager.addCallback(this.setupStatusBarMessaging());
 
         Spinner dropdown = findViewById(R.id.currency);
         String[] items = new String[]{"ALL", "Euro", "USD"};
@@ -71,14 +84,47 @@ public class HomeActivity extends BaseActivity {
                 save_OnClick(view);
             }
         });
+
+        setCategoryAutoComplete();
+    }
+
+    private void setCategoryAutoComplete() {
+        try {
+            Database db = ((BillTrackerApplication) this.getApplication()).getDatabase();
+            Query query = QueryBuilder.select(SelectResult.property("category"))
+                    .from(DataSource.database(db))
+                    .groupBy(PropertyExpression.property("category"))
+                    .orderBy(Ordering.property("category"));
+            ResultSet result = query.execute();
+            List<Result> result_rows = result.allResults();
+            Log.d(TAG, Integer.toString(result_rows.size()));
+            ArrayList<String> categories = new ArrayList<String>();
+            Log.d(TAG, Integer.toString(result_rows.size()));
+            for (int index = 0; index < result_rows.size(); index++) {
+                categories.add(result_rows.get(index).getString("category"));
+            }
+            ArrayAdapter<String> category_adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, categories);
+            AutoCompleteTextView category = ((AutoCompleteTextView) findViewById(R.id.category));
+            category.setAdapter(category_adapter);
+        }
+        catch(CouchbaseLiteException e) {
+            Log.e(TAG, e.toString());
+            status_bar.setText(e.toString());
+        }
     }
 
     private JobManagerCallback setupStatusBarMessaging() {
+        final String cache_filename = this.getFilesDir().toString() + "/billReport.json";
         return new JobManagerCallback() {
             @Override
             public void onJobAdded(@NonNull Job job) {
-                num_updates++;
-                status_bar.setText(Integer.toString(num_updates) + " bills queued");
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        num_updates++;
+                        status_bar.setText("Uploading " + Integer.toString(num_updates) + " bills");
+                    }
+                });
             }
 
             @Override
@@ -88,7 +134,14 @@ public class HomeActivity extends BaseActivity {
 
             @Override
             public void onJobCancelled(@NonNull Job job, boolean byCancelRequest, @Nullable Throwable throwable) {
-                status_bar.setText("Error saving bill" + throwable.getMessage());
+                final String message = throwable.getMessage();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        status_bar.setText("Error saving bill" + message);
+                    }
+                });
             }
 
             @Override
@@ -99,25 +152,40 @@ public class HomeActivity extends BaseActivity {
             @Override
             public void onAfterJobRun(@NonNull Job job, int resultCode) {
                 Log.d(TAG, Integer.toString(resultCode));
-                if (resultCode == 1) {
-                    num_updates--;
-                    if (num_updates == 0) {
-                        status_bar.setText("Success");
-                        final Timer t = new Timer();
-                        t.schedule(new TimerTask() {
-                            public void run() {
-                                status_bar.setText("");
-                                t.cancel();
+                final int code = resultCode;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (code == 1) {
+                            num_updates--;
+                            if (num_updates == 0) {
+                                status_bar.setText("Success");
+                                setCategoryAutoComplete();
+
+                                final Timer t = new Timer();
+                                t.schedule(new TimerTask() {
+                                    public void run() {
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                status_bar.setText("");
+                                                t.cancel();
+                                            }
+                                        });
+                                    }
+                                }, 1500);
                             }
-                        }, 1500);
+                            else {
+                                Log.d(TAG, "Uploading " + Integer.toString(num_updates) + " bills");
+                                status_bar.setText("Uploading " + Integer.toString(num_updates) + " bills");
+                            }
+                        }
+                        else {
+                            Log.d(TAG, "Error running job, resultCode" + code);
+                        }
                     }
-                    else {
-                        status_bar.setText("Uploading " + Integer.toString(num_updates) + " bills");
-                    }
-                }
-                else {
-                    Log.d(TAG, "Error running job, resultCode" + resultCode);
-                }
+                });
+
             }
         };
     }
@@ -133,89 +201,22 @@ public class HomeActivity extends BaseActivity {
     private void Save(String amount, String currency, String category) {
         final String token = this.getCookieValue("token");
         Log.d(TAG, token);
-        jobManager.addJobInBackground(new PostDataJob(amount, category, currency, token));
+        HashMap<String, String> params = new HashMap<String, String>();
+        params.put("amount", amount);
+        params.put("currency", currency);
+        params.put("category", category);
+        params.put("timezone", Integer.toString(TimeZone.getDefault().getRawOffset()));
+        jobManager.addJobInBackground(new HttpDataJob(new HttpDataOptions(params, Request.Method.POST, "bill", false, true)));
 
         ((EditText)findViewById(R.id.amount)).setText("");
         ((Spinner)findViewById(R.id.currency)).setSelection(0);
         ((EditText)findViewById(R.id.category)).setText("");
-        ((EditText)findViewById(R.id.amount)).requestFocus();
 
-
-        /*
-        String base_url = getString(R.string.base_url);
-        RequestQueue queue = Volley.newRequestQueue(this);
-
-        Map<String, String> params = new HashMap();
-        params.put("amount", amount);
-        params.put("currency", currency);
-        params.put("category", category);
-
-        JSONObject parameters = new JSONObject(params);
-        final String token = this.getCookieValue("token");
-
-        Log.d(TAG, "preparing to post data to: " + base_url);
-        RequestFuture<JSONObject> future = RequestFuture.newFuture();
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST,
-                base_url + "bill",
-                parameters,
-                future,
-                future){
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                HashMap<String, String> headers = new HashMap<String, String>();
-                headers.put("Content-Type", "application/json");
-                headers.put("token", token);
-                return headers;
-            }
-        };
-        queue.add(request);
-
-        try {
-            Log.d(TAG, "Posting data to: " + base_url+ "bill");
-            JSONObject response = future.get(20, TimeUnit.SECONDS);
-            Log.d(TAG, "Response is: "+ response.toString());
-            handleSaveResponse(response);
-        } catch (InterruptedException e) {
-            String err_msg = e.getMessage() + ' ' + e.getStackTrace();
-            Log.e(TAG, err_msg);
-            displayErrorAlert(err_msg);
-        } catch (ExecutionException e) {
-            String err_msg = e.getMessage() + ' ' + e.getStackTrace();
-            Log.e(TAG, err_msg);
-            displayErrorAlert(err_msg);
-        } catch (TimeoutException e) {
-            String err_msg = e.getMessage() + ' ' + e.getStackTrace();
-            Log.e(TAG, err_msg);
-            displayErrorAlert(err_msg);
+        View view = this.getCurrentFocus();
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
         }
-
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST,
-                base_url + "bill",
-                parameters,
-                new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        Log.d(TAG, "Response is: "+ response.toString());
-                        handleSaveResponse(response);
-                    }
-                }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                displayErrorAlert(error);
-            }
-        })
-        {
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                HashMap<String, String> headers = new HashMap<String, String>();
-                headers.put("Content-Type", "application/json");
-                headers.put("token", token);
-                return headers;
-            }
-        };
-        queue.add(request);
-
-        */
     }
 
     private void handleSaveResponse(JSONObject response) {

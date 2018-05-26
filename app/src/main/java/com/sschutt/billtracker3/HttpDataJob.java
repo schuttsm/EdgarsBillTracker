@@ -17,16 +17,37 @@ import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.Volley;
 import com.birbit.android.jobqueue.CancelReason;
 import com.birbit.android.jobqueue.Job;
+import com.birbit.android.jobqueue.JobManager;
 import com.birbit.android.jobqueue.Params;
 import com.birbit.android.jobqueue.RetryConstraint;
+import com.couchbase.lite.CouchbaseLiteException;
+import com.couchbase.lite.DataSource;
+import com.couchbase.lite.Database;
+import com.couchbase.lite.DatabaseConfiguration;
+import com.couchbase.lite.Document;
+import com.couchbase.lite.MutableDocument;
+import com.couchbase.lite.Ordering;
+import com.couchbase.lite.Query;
+import com.couchbase.lite.QueryBuilder;
+import com.couchbase.lite.Result;
+import com.couchbase.lite.ResultSet;
+import com.couchbase.lite.SelectResult;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedWriter;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -35,26 +56,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import android.content.SharedPreferences;
 
-// A job to send a tweet
 
-public class PostDataJob extends Job {
+
+public class HttpDataJob extends Job {
     final String SHARED_PREFERENCES_NAME = "preferences";
     private String TAG = "Bill Entry";
     public static final int PRIORITY = 1;
-    private String amount;
-    private String category;
-    private String currency;
-    private String token;
+    private HttpDataOptions options;
 
-    public PostDataJob(String amount, String category, String currency, String token) {
+    public HttpDataJob(HttpDataOptions options) {
         // This job requires network connectivity,
         // and should be persisted in case the application exits before job is completed.
 
         super(new Params(PRIORITY).requireNetwork().persist());
-        this.amount = amount;
-        this.category = category;
-        this.currency = currency;
-        this.token = token;
+        this.options = options;
     }
     @Override
     public void onAdded() {
@@ -68,18 +83,13 @@ public class PostDataJob extends Job {
         Log.d(TAG, "running");
         String base_url = this.getApplicationContext().getString(R.string.base_url);
         RequestQueue queue = Volley.newRequestQueue(this.getApplicationContext());
+        final String token = this.getCookieValue("token");
 
-        Map<String, String> params = new HashMap();
-        params.put("amount", amount);
-        params.put("currency", currency);
-        params.put("category", category);
-
-        JSONObject parameters = new JSONObject(params);
-
-        Log.d(TAG, "preparing to post data to: " + base_url);
+        JSONObject parameters = new JSONObject(this.options.params);
+        Log.d(TAG, String.format("preparing to make a %s request data to %s ", this.options.method, base_url + this.options.url));
         RequestFuture<JSONObject> future = RequestFuture.newFuture();
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST,
-                base_url + "bill",
+        JsonObjectRequest request = new JsonObjectRequest(this.options.method,
+                base_url + this.options.url,
                 parameters,
                 future,
                 future){
@@ -93,9 +103,40 @@ public class PostDataJob extends Job {
         };
         queue.add(request);
 
-        Log.d(TAG, "Posting data to: " + base_url + "bill");
-        JSONObject response = future.get(20, TimeUnit.SECONDS);
+        Log.d(TAG, "sending data to: " + base_url + options.url);
+        JSONObject response = future.get(30, TimeUnit.SECONDS);
         Log.d(TAG, "Response is: "+ response.toString());
+        BillTrackerApplication app = ((BillTrackerApplication) this.getApplicationContext());
+        if (this.options.save_output) {
+            if (response.getString("status").equals("success")) {
+                Log.d(TAG, String.format("writing response to couchbase"));
+                app.clearDatabase();
+                Database db = app.getDatabase();
+                this.saveDocs(response.getJSONArray("items"), db);
+            } else {
+                throw new Exception(String.format("Error loading http data: %s", response.toString()));
+            }
+        }
+
+        if (this.options.refresh_bills) {
+            JobManager jobManager = app.getJobManager();
+            HttpDataOptions opts = new HttpDataOptions(new HashMap<String, String>(), Request.Method.GET, "billReport", true, false);
+            jobManager.addJobInBackground(new HttpDataJob(opts));
+        }
+        return;
+    }
+
+    protected void saveDocs(JSONArray items, Database db) throws Throwable {
+        for(int index = 0; index < items.length(); index++) {
+            JSONObject obj = items.getJSONObject(index);
+            MutableDocument doc = new MutableDocument();
+            doc.setString("amount", obj.getString("amount"));
+            doc.setString("currency", obj.getString("currency"));
+            doc.setString("category", obj.getString("category"));
+            doc.setLong("date", obj.getLong("date"));
+            doc.setString("server_id", obj.getString("_id"));
+            db.save(doc);
+        }
     }
 
     @Override

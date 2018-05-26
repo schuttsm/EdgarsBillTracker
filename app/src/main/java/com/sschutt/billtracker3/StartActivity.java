@@ -3,18 +3,21 @@ package com.sschutt.billtracker3;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 
 import java.net.HttpCookie;
 
 public class StartActivity extends BaseActivity {
+    private final String TAG = "StartActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_start);
 
-        if (this.getCookieValue("token") != null) {
+        if (!TextUtils.isEmpty(this.getCookieValue("token"))) {
             Intent intent = new Intent(this, HomeActivity.class);
             startActivity(intent);
         }
