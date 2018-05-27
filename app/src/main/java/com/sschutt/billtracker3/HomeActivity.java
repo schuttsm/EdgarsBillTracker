@@ -97,9 +97,7 @@ public class HomeActivity extends BaseLoggedInActivity {
                     .orderBy(Ordering.property("category"));
             ResultSet result = query.execute();
             List<Result> result_rows = result.allResults();
-            Log.d(TAG, Integer.toString(result_rows.size()));
             ArrayList<String> categories = new ArrayList<String>();
-            Log.d(TAG, Integer.toString(result_rows.size()));
             for (int index = 0; index < result_rows.size(); index++) {
                 categories.add(result_rows.get(index).getString("category"));
             }

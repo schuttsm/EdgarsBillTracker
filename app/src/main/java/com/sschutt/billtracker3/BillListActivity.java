@@ -53,7 +53,6 @@ public class BillListActivity extends BaseLoggedInActivity {
     private TextView status_bar;
     private ListView bill_grid;
     private String TAG = "Bill List";
-    private String cache_filename;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
