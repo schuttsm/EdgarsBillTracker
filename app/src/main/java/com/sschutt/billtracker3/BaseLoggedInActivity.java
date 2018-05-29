@@ -31,6 +31,7 @@ public class BaseLoggedInActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
 
 
+
         Bundle bundle = getIntent().getExtras();
         if (bundle == null)
             tab_id = 1;
@@ -45,6 +46,14 @@ public class BaseLoggedInActivity extends BaseActivity {
         bottomNav.setSelectedItemId(tab_id);
         context = this.getApplicationContext();
         bottomNav.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
+        findViewById(R.id.btn_logout).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                setCookieValue("token", null);
+                Intent intent = new Intent(context, StartActivity.class);
+                startActivity(intent);
+            }
+        });
     }
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
@@ -67,11 +76,6 @@ public class BaseLoggedInActivity extends BaseActivity {
                 case R.id.navigation_report:
                     intent = new Intent(context, ReportActivity.class);
                     intent.putExtra("tab_id", R.id.navigation_report);
-                    startActivity(intent);
-                    return true;
-                case R.id.navigation_logout:
-                    setCookieValue("token", null);
-                    intent = new Intent(context, StartActivity.class);
                     startActivity(intent);
                     return true;
             }

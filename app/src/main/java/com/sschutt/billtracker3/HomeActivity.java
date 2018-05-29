@@ -85,6 +85,7 @@ public class HomeActivity extends BaseLoggedInActivity {
             }
         });
 
+
         setCategoryAutoComplete();
     }
 

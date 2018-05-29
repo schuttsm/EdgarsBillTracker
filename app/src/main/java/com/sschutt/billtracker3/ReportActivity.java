@@ -1,12 +1,19 @@
 package com.sschutt.billtracker3;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 
+import com.couchbase.lite.Array;
 import com.couchbase.lite.CouchbaseLiteException;
 import com.couchbase.lite.DataSource;
 import com.couchbase.lite.Database;
@@ -28,6 +35,7 @@ import com.github.mikephil.charting.utils.ColorTemplate;
 import com.github.mikephil.charting.utils.MPPointF;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -38,14 +46,16 @@ public class ReportActivity extends BaseLoggedInActivity {
     private TextView status_bar;
     private final String TAG = "ReportActivity";
     private PieChart mChart;
+    private TableLayout child_layout;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_report);
         status_bar = (TextView) findViewById(R.id.status_bar);
+        ListView report_legend = (ListView)findViewById(R.id.report_legend);
+        ArrayList<PieEntry> entries = new ArrayList<PieEntry>();
 
         mChart = findViewById(R.id.chart1);
-        ArrayList<PieEntry> entries = new ArrayList<PieEntry>();
         PieDataSet dataSet = new PieDataSet(entries, "");
         PieData data = new PieData(dataSet);
         ArrayList<Integer> colors = new ArrayList<Integer>();
@@ -55,18 +65,14 @@ public class ReportActivity extends BaseLoggedInActivity {
         dataSet.setSelectionShift(5f);
         mChart.setUsePercentValues(true);
         mChart.getDescription().setEnabled(false);
+        mChart.setCenterTextRadiusPercent(5f);
 
         Legend l = mChart.getLegend();
-        // l.setVerticalAlignment(Legend.LegendVerticalAlignment.TOP);
-        l.setHorizontalAlignment(Legend.LegendHorizontalAlignment.RIGHT);
-        l.setOrientation(Legend.LegendOrientation.VERTICAL);
-        l.setDrawInside(false);
-        l.setXEntrySpace(7f);
-        l.setYEntrySpace(0f);
-        l.setYOffset(0f);
         String selected_currency = "ALL";
 
         for (int c : ColorTemplate.MATERIAL_COLORS)
+            colors.add(c);
+        for (int c : ColorTemplate.LIBERTY_COLORS)
             colors.add(c);
 
         dataSet.setColors(colors);
@@ -77,7 +83,6 @@ public class ReportActivity extends BaseLoggedInActivity {
                     SelectResult.property("category"))
                     .from(DataSource.database(db))
                     .where(Expression.property("currency").equalTo(Expression.string(selected_currency)));
-                    // .groupBy(PropertyExpression.property("category"));
             ResultSet result = query.execute();
             List<Result> result_rows = result.allResults();
             Float total = 0f;
@@ -97,11 +102,13 @@ public class ReportActivity extends BaseLoggedInActivity {
             }
             data.setValueFormatter(new PercentFormatter());
             Iterator it = amounts.entrySet().iterator();
+            ArrayList<String> str_amounts = new ArrayList<String>();
             while (it.hasNext()) {
                 Map.Entry<String, Float> pair = (Map.Entry)it.next();
                 Float category_amount = pair.getValue();
                 Float category_percent = category_amount / total;
-                entries.add(new PieEntry(category_percent, pair.getKey() + " - " + category_amount + " " + selected_currency ));
+                entries.add(new PieEntry(category_percent, pair.getKey()));
+                str_amounts.add(" - " + category_amount + " " + selected_currency);
             }
             data.setValueTextSize(11f);
             data.setValueTextColor(Color.BLACK);
@@ -112,11 +119,13 @@ public class ReportActivity extends BaseLoggedInActivity {
             mChart.setTransparentCircleAlpha(110);
             mChart.setCenterTextColor(Color.BLACK);
             mChart.setData(data);
+
+            report_legend.setAdapter(new ReportLegendListAdapter(dataSet, l, str_amounts, this));
+            mChart.getLegend().setWordWrapEnabled(true);
+            mChart.getLegend().setEnabled(false);
         } catch (CouchbaseLiteException e) {
             Log.e(TAG, e.toString());
             status_bar.setText(e.toString());
         }
-
-
     }
 }
