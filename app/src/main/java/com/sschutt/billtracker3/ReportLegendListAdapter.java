@@ -1,6 +1,7 @@
 package com.sschutt.billtracker3;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,12 +23,12 @@ public class ReportLegendListAdapter extends BaseAdapter {
     private PieDataSet dataSet;
     private Context context;
     private Legend legend;
-    private ArrayList<String> amounts;
-    ReportLegendListAdapter(PieDataSet dataSet, Legend legend, ArrayList<String> amounts, Context context) {
+    private Float total;
+    ReportLegendListAdapter(PieDataSet dataSet, Legend legend, Float total, Context context) {
         this.dataSet = dataSet;
         this.legend = legend;
-        this.amounts = amounts;
         this.context = context;
+        this.total = total;
     }
 
     @Override
@@ -35,7 +36,7 @@ public class ReportLegendListAdapter extends BaseAdapter {
         if (dataSet == null)
             return 0;
         else
-            return dataSet.getEntryCount();
+            return dataSet.getEntryCount() + 1;
     }
 
     @Override
@@ -44,26 +45,34 @@ public class ReportLegendListAdapter extends BaseAdapter {
     }
 
     @Override
-    public ReportLegendRow getItem(int position) {
-        ReportLegendRow row = new ReportLegendRow();
-        row.Color = this.legend.getColors()[position];
-        row.Category = dataSet.getEntryForIndex(position).getLabel();
+    public PieEntryBill getItem(int position) {
+        PieEntryBill row;
+        if (position == dataSet.getEntryCount()) {
+            row = new PieEntryBill(100, "Total", this.total, "ALL");
+            row.Color = Color.WHITE;
+        }
+        else {
+            row = ((PieEntryBill) dataSet.getEntryForIndex(position));
+            row.Color = this.legend.getColors()[position];
+        }
         return row;
     }
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-        final ReportLegendRow row = this.getItem(position);
+        final PieEntryBill row = this.getItem(position);
         if (convertView == null) {
             final LayoutInflater layoutInflater = LayoutInflater.from(context);
             convertView = layoutInflater.inflate(R.layout.legend_row, null);
         }
 
-
         LinearLayout tv_color = (LinearLayout)convertView.findViewById(R.id.tv_color);
         TextView tv_label = (TextView)convertView.findViewById(R.id.tv_label);
+        TextView tv_amt = (TextView)convertView.findViewById(R.id.tv_amt);
         tv_color.setBackgroundColor(row.Color);
-        tv_label.setText(row.Category + this.amounts.get(position));
+        tv_label.setText(row.Category);
+        tv_amt.setText(row.CategoryAmount + " " + row.Currency);
+        // tv_label.setText(row.Category + this.amounts.get(position));
 
         return convertView;
     }

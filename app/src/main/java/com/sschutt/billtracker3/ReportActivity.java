@@ -42,6 +42,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+
+
 public class ReportActivity extends BaseLoggedInActivity {
     private TextView status_bar;
     private final String TAG = "ReportActivity";
@@ -102,13 +104,13 @@ public class ReportActivity extends BaseLoggedInActivity {
             }
             data.setValueFormatter(new PercentFormatter());
             Iterator it = amounts.entrySet().iterator();
-            ArrayList<String> str_amounts = new ArrayList<String>();
             while (it.hasNext()) {
                 Map.Entry<String, Float> pair = (Map.Entry)it.next();
                 Float category_amount = pair.getValue();
                 Float category_percent = category_amount / total;
-                entries.add(new PieEntry(category_percent, pair.getKey()));
-                str_amounts.add(" - " + category_amount + " " + selected_currency);
+
+                // entries.add(new PieEntryBill(category_percent, pair.getKey(), category_amount, selected_currency));
+                addToEntries(entries, new PieEntryBill(category_percent, pair.getKey(), category_amount, selected_currency));
             }
             data.setValueTextSize(11f);
             data.setValueTextColor(Color.BLACK);
@@ -120,12 +122,24 @@ public class ReportActivity extends BaseLoggedInActivity {
             mChart.setCenterTextColor(Color.BLACK);
             mChart.setData(data);
 
-            report_legend.setAdapter(new ReportLegendListAdapter(dataSet, l, str_amounts, this));
+            report_legend.setAdapter(new ReportLegendListAdapter(dataSet, l, total, this));
             mChart.getLegend().setWordWrapEnabled(true);
             mChart.getLegend().setEnabled(false);
         } catch (CouchbaseLiteException e) {
             Log.e(TAG, e.toString());
             status_bar.setText(e.toString());
         }
+    }
+
+    private void addToEntries(ArrayList<PieEntry> entries, PieEntryBill bill) {
+        for(int index = 0; index < entries.size(); index++) {
+            PieEntryBill curr_bill = ((PieEntryBill)entries.get(index));
+            if (curr_bill.CategoryAmount < bill.CategoryAmount) {
+                entries.add(index, bill);
+                return;
+            }
+        }
+        entries.add(bill);
+        return;
     }
 }
