@@ -2,6 +2,7 @@ package com.sschutt.billtracker3;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -49,11 +50,12 @@ public class ReportLegendListAdapter extends BaseAdapter {
         PieEntryBill row;
         if (position == dataSet.getEntryCount()) {
             row = new PieEntryBill(100, "Total", this.total, "ALL");
-            row.Color = Color.WHITE;
+            // row.Color = Color.WHITE;
         }
         else {
             row = ((PieEntryBill) dataSet.getEntryForIndex(position));
-            row.Color = this.legend.getColors()[position];
+            int num_colors = this.legend.getColors().length;
+            row.Color = this.legend.getColors()[position % (num_colors - 1)];
         }
         return row;
     }

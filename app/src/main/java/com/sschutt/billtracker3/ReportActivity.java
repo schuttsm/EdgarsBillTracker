@@ -71,10 +71,11 @@ public class ReportActivity extends BaseLoggedInActivity {
 
         Legend l = mChart.getLegend();
         String selected_currency = "ALL";
-
-        for (int c : ColorTemplate.MATERIAL_COLORS)
+        for (int c : ColorTemplate.COLORFUL_COLORS)
             colors.add(c);
         for (int c : ColorTemplate.LIBERTY_COLORS)
+            colors.add(c);
+        for (int c : ColorTemplate.MATERIAL_COLORS)
             colors.add(c);
 
         dataSet.setColors(colors);
